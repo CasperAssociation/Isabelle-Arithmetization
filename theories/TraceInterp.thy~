@@ -2,6 +2,8 @@ theory CircuitInterp
   imports Main "LogicCircuitTypes"
 begin
 
+type_synonym InputMatrix = "ColumnIndex \<rightharpoonup> FixedColumn"
+
 definition FixedTypeConstraint :: "('a, 'b) Circuit \<Rightarrow> bool" where
   "FixedTypeConstraint c = (\<forall> x .
     (\<exists> y. Circuit.fixedValues c x = Some y) \<longrightarrow> (

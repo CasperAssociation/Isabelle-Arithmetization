@@ -37,10 +37,12 @@ record ('a, 'b) Circuit =
   equalityConstraints :: EqualityConstraints
   fixedValues :: FixedValues
 
-
+type_synonym PolynomialVariable = CellReference
+(*
 record PolynomialVariable =
   colIndex :: ColumnIndex
   rowIndex :: RowIndex 
+*)
 
 type_synonym LookupTableOutputColumn = LookupTableColumn
 datatype Term =

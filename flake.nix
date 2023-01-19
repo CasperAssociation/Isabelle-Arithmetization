@@ -14,7 +14,6 @@
     {
 
       devShells.x86_64-linux.default =
-
         pkgs.stdenv.mkDerivation {
           name = "isabelle-shell";
           inherit buildInputs;
@@ -23,13 +22,16 @@
 
       packages.x86_64-linux.default =
         pkgs.stdenv.mkDerivation {
-           name = "isabelle-theories";
+           name = "isabelle-arithmetization-theories";
            inherit buildInputs;
            src = ./theories;
            buildPhase = ''
              export UUID=$(uuidgen)
              mkdir -p /tmp/$UUID
              HOME=/tmp/$UUID isabelle build -D .
+           '';
+           installPhase = ''
+             mkdir -p $out
            '';
         };
 

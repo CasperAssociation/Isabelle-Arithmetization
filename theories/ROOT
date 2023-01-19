@@ -1,4 +1,4 @@
 session "Isabelle-Arithmetization" = HOL +
-  theories [document = false]
+  theories
     LogicCircuitTypes
     CircuitInterp

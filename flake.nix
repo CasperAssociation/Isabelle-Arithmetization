@@ -24,14 +24,16 @@
         pkgs.stdenv.mkDerivation {
            name = "isabelle-arithmetization-theories";
            inherit buildInputs;
-           src = ./theories;
+           src = ./.;
            buildPhase = ''
              export UUID=$(uuidgen)
-             mkdir -p /tmp/$UUID
-             HOME=/tmp/$UUID isabelle build -D .
+             mkdir -p /tmp/$UUID/out
+             HOME=/tmp/$UUID isabelle build -D theories -P ./output
            '';
            installPhase = ''
              mkdir -p $out
+             ls
+             cp -r output/* $out
            '';
         };
 

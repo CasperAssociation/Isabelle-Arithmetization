@@ -2,9 +2,11 @@ theory LogicCircuitTypes
   imports Main
 begin
 
-(*In OSL Scalar is Word64. This can be implemented (see "HOL-Word" library),
-  but isn't a built in type. I don't think this matters much, but we'll see. *)
-type_synonym Scalar = "nat"
+(*In OSL Scalar is Word64. It's supposed to represent a finite field, specifically
+  the Goldilocks of size (2^64-2^32)+1. *)
+type_synonym Scalar = "int"
+definition GoldilocksSize :: int where
+  [simp]:"GoldilocksSize = (2^64-2^32)+1"
 type_synonym RowCount = "Scalar"
 type_synonym ColumnIndex = "int"
 datatype ColumnType = Fixed | Advice | Instance
@@ -69,8 +71,8 @@ datatype LogicConstraint =
   Top |
   Bottom
 
-(*In OSL FixedBound is Word64. This can be implemented (see "HOL-Word" library),
-  but isn't a built in type. I don't think this matters much, but we'll see. *)
+(*In OSL FixedBound is Word64. It's sipposed to represent
+   an absolute value bound on a given column *)
 type_synonym FixedBound = "nat"
 record LogicConstraints =
   constraints :: "(Label * LogicConstraint) list"
@@ -128,6 +130,6 @@ record TraceType =
   numCases :: NumberOfCases
   rowCount :: RowCount
 
-
+type_synonym InputMatrix = "ColumnIndex \<rightharpoonup> FixedColumn"
 
 end

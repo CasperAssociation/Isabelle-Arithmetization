@@ -83,12 +83,15 @@ type_synonym LogicCircuit = "(LogicConstraints, Term) Circuit"
 
 type_synonym Exponent = int
 type_synonym Coefficient = Scalar
-type_synonym PowerProduct = "PolynomialVariable \<rightharpoonup> Exponent"
-type_synonym Polynomial = "PowerProduct \<rightharpoonup> Coefficient"
+record PowerProduct = 
+  unPowerProduct :: "PolynomialVariable \<rightharpoonup> Exponent"
+  
+record Polynomial = 
+  unPolynomial :: "PowerProduct \<rightharpoonup> Coefficient"
 type_synonym PolynomialDegreeBound = int
 
 record PolynomialConstraints = 
-  constraints :: "Polynomial list"
+  constraints :: "(Label * Polynomial) list"
   degreeBound :: PolynomialDegreeBound
 
 record StepType = 
@@ -131,5 +134,12 @@ record TraceType =
   rowCount :: RowCount
 
 type_synonym InputMatrix = "ColumnIndex \<rightharpoonup> FixedColumn"
+
+type_synonym Statement = "CellReference \<rightharpoonup> Scalar"
+type_synonym Witness = "CellReference \<rightharpoonup> Scalar"
+record Argument =
+  statement :: Statement
+  witness :: Witness
+
 
 end

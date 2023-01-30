@@ -5,6 +5,32 @@ begin
 class HasPolynomialVariables =
   fixes getPolynomialVariables :: "'a \<Rightarrow> PolynomialVariable set"
 
+(*Note: this covers the LookupArguments instance as a special case*)
+instantiation set :: (HasPolynomialVariables) HasPolynomialVariables
+begin 
+definition getPolynomialVariables_sets :: 
+   "'a set \<Rightarrow> PolynomialVariable set" where
+"getPolynomialVariables_sets cs = \<Union> (getPolynomialVariables ` cs)"
+instance proof qed
+end
+
+instantiation list :: (HasPolynomialVariables) HasPolynomialVariables
+begin 
+  definition getPolynomialVariables_lists :: 
+   "'a list \<Rightarrow> PolynomialVariable set" where
+"getPolynomialVariables_lists cs = getPolynomialVariables (set cs)"
+instance proof qed
+end
+
+(* Should/can there be a generic map instance?
+instantiation (\<rightharpoonup>) :: (type, type) HasPolynomialVariables
+begin 
+  definition getPolynomialVariables_map where
+"getPolynomialVariables_map cs = {}"
+instance proof qed
+end
+*)
+
 instantiation PowerProduct_ext :: (type) HasPolynomialVariables
 begin 
   definition getPolynomialVariables_PowerProduct :: 
@@ -19,7 +45,7 @@ begin
   definition getPolynomialVariables_Polynomial :: 
   "Polynomial \<Rightarrow> PolynomialVariable set" where
 "getPolynomialVariables_Polynomial p = 
-  \<Union> (getPolynomialVariables ` {key. \<exists>y . unPolynomial p key = Some y})"
+  getPolynomialVariables {key. \<exists>y . unPolynomial p key = Some y}"
   instance proof qed
 end
 
@@ -28,13 +54,14 @@ begin
   definition getPolynomialVariables_PolynomialConstraints :: 
   "PolynomialConstraints \<Rightarrow> PolynomialVariable set" where
 "getPolynomialVariables_PolynomialConstraints cs = 
-  \<Union> ((getPolynomialVariables \<circ> snd) ` set (constraints cs))"
+  getPolynomialVariables (map snd (constraints cs))"
   instance proof qed
 end
 
 instantiation Term :: HasPolynomialVariables
 begin
-  fun getPolynomialVariablesTerm where
+  fun getPolynomialVariablesTerm ::
+  "Term \<Rightarrow> PolynomialVariable set"where
   "getPolynomialVariablesTerm (Var x) = {x}" |
   "getPolynomialVariablesTerm (Lookup is x) = 
     \<Union> (set (map (getPolynomialVariablesTerm \<circ> fst) is))
@@ -53,7 +80,8 @@ end
 
 instantiation AtomicLogicConstraint :: HasPolynomialVariables
 begin
-  primrec getPolynomialVariablesALC where
+  primrec getPolynomialVariablesALC ::
+  "AtomicLogicConstraint \<Rightarrow> PolynomialVariable set" where
   "getPolynomialVariablesALC (Equals x y) = 
     getPolynomialVariables x \<union> getPolynomialVariables y" |
   "getPolynomialVariablesALC (LessThan x y) = 
@@ -63,7 +91,8 @@ end
 
 instantiation LogicConstraint :: HasPolynomialVariables
 begin
-  fun getPolynomialVariablesLC where
+  fun getPolynomialVariablesLC ::
+  "LogicConstraint \<Rightarrow> PolynomialVariable set" where
   "getPolynomialVariablesLC (Atom x) = getPolynomialVariables x" |
   "getPolynomialVariablesLC (Not x) = getPolynomialVariablesLC x" |
   "getPolynomialVariablesLC (And x y) = 
@@ -77,13 +106,67 @@ begin
   instance proof qed
 end
 
+instantiation LogicConstraints_ext :: (type) HasPolynomialVariables
+begin 
+  definition getPolynomialVariables_LogicConstraints :: 
+  "LogicConstraints \<Rightarrow> PolynomialVariable set" where
+"getPolynomialVariables_LogicConstraints cs = 
+  getPolynomialVariables (map snd (LogicConstraints.constraints cs))"
+  instance proof qed
+end
+
+instantiation LookupArgument_ext :: (HasPolynomialVariables, type) HasPolynomialVariables 
+begin
+definition getPolynomialVariables_LookupArgument ::
+  "'a LookupArgument \<Rightarrow> PolynomialVariable set" where
+"getPolynomialVariables_LookupArgument x = 
+  getPolynomialVariables (gate x) \<union>
+  getPolynomialVariables (map fst (tableMap x))"
+instance proof qed
+end
+
+instantiation Circuit_ext :: (HasPolynomialVariables, HasPolynomialVariables, type) HasPolynomialVariables 
+begin
+definition getPolynomialVariables_Circuit ::
+  "('a, 'b) Circuit \<Rightarrow> PolynomialVariable set" where
+"getPolynomialVariables_Circuit x = 
+  getPolynomialVariables (Circuit.gateConstraints x) \<union>
+  getPolynomialVariables (Circuit.lookupArguments x)"
+instance proof qed
+end
 
 class HasScalars =
   fixes getScalars :: "'a \<Rightarrow> Scalar set"
 
+(*Note: this covers the LookupArguments instance as a special case*)
+instantiation set :: (HasScalars) HasScalars
+begin 
+  definition getScalars_sets :: 
+  "'a set \<Rightarrow> Scalar set" where
+"getScalars_sets cs = \<Union> (getScalars ` cs)"
+instance proof qed
+end
+
+instantiation list :: (HasScalars) HasScalars
+begin 
+  definition getScalars_lists :: 
+  "'a list \<Rightarrow> Scalar set" where
+"getScalars_lists cs = getScalars (set cs)"
+instance proof qed
+end
+
+instantiation Polynomial_ext :: (type) HasScalars
+begin 
+  definition getScalars_Polynomial :: 
+  "Polynomial \<Rightarrow> Scalar set" where
+"getScalars_Polynomial p = {v. \<exists>key. unPolynomial p key = Some v}"
+  instance proof qed
+end
+
 instantiation Term :: HasScalars
 begin
-  fun getScalarsTerm where
+  fun getScalarsTerm :: 
+  "Term \<Rightarrow> Scalar set" where
   "getScalarsTerm (Var x) = {}" |
   "getScalarsTerm (Lookup is x) = 
     \<Union> (set (map (getScalarsTerm \<circ> fst) is))" |
@@ -102,7 +185,8 @@ end
 
 instantiation AtomicLogicConstraint :: HasScalars
 begin
-  primrec getScalarsALC where
+  primrec getScalarsALC :: 
+  "AtomicLogicConstraint \<Rightarrow> Scalar set" where
   "getScalarsALC (Equals x y) = 
     getScalars x \<union> getScalars y" |
   "getScalarsALC (LessThan x y) = 
@@ -113,7 +197,8 @@ end
 
 instantiation LogicConstraint :: HasScalars
 begin
-  fun getScalarsLC where
+  fun getScalarsLC :: 
+  "LogicConstraint \<Rightarrow> Scalar set" where
   "getScalarsLC (Atom x) = getScalars x" |
   "getScalarsLC (Not x) = getScalarsLC x" |
   "getScalarsLC (And x y) = 
@@ -127,14 +212,38 @@ begin
   instance proof
   qed
 end
-*)
 
-(*
-instantiation 'a LookupArgument :: HasScalars
-begin
-  
+instantiation LogicConstraints_ext :: (type) HasScalars
+begin 
+  definition getScalars_LogicConstraints :: 
+  "LogicConstraints \<Rightarrow> Scalar set" where
+"getScalars_LogicConstraints cs = 
+  getScalars (map snd (LogicConstraints.constraints cs))"
+  instance proof qed
 end
-*)
+
+instantiation LookupArgument_ext :: (HasScalars, type) HasScalars 
+begin
+definition getScalars_LookupArgument ::
+  "'a LookupArgument \<Rightarrow> Scalar set" where
+"getScalars_LookupArgument x = 
+  getScalars (gate x) \<union>
+  getScalars (map fst (tableMap x))"
+instance proof qed
+end
+
+instantiation Circuit_ext :: (HasScalars, HasScalars, type) HasScalars 
+begin
+definition getScalars_Circuit ::
+  "('a, 'b) Circuit \<Rightarrow> Scalar set" where
+"getScalars_Circuit x = 
+  getScalars (Circuit.gateConstraints x) \<union>
+  getScalars (Circuit.lookupArguments x)"
+instance proof qed
+end
+
+
+
 
 locale HasEvaluate =
   fixes evaluate :: "Argument \<Rightarrow> 'a \<rightharpoonup> 'b"

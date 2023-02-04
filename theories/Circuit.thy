@@ -242,11 +242,135 @@ definition getScalars_Circuit ::
 instance proof qed
 end
 
+(*
+locale HasLookupArguments =
+  fixes getLookupArguments :: "'a \<Rightarrow> 'b LookupArguments"
+*)
+type_synonym ('a, 'b) HasLookupArguments = "'a \<Rightarrow> 'b LookupArguments"
+
+fun getLookupArguments_List ::
+  "('a, 'b) HasLookupArguments \<Rightarrow>
+   ('a list, 'b) HasLookupArguments" where
+"getLookupArguments_List gLA = \<Union> \<circ> set \<circ> map gLA"
+
+fun getLookupArguments_Term_Term ::
+  "(Term, Term) HasLookupArguments" where
+"getLookupArguments_Term_Term (Const x) = {}" |
+"getLookupArguments_Term_Term (Var x) = {}" |
+"getLookupArguments_Term_Term (Lookup is oo) = 
+  {\<lparr> label = ''application'', gate = Const 0, tableMap = [(Const 0, oo)]\<rparr>} \<union>
+  \<Union> (set (map (getLookupArguments_Term_Term \<circ> fst) is))" |
+"getLookupArguments_Term_Term (Plus x y) = 
+  getLookupArguments_Term_Term x \<union>
+  getLookupArguments_Term_Term y" |
+"getLookupArguments_Term_Term (Times x y) = 
+  getLookupArguments_Term_Term x \<union>
+  getLookupArguments_Term_Term y" |
+"getLookupArguments_Term_Term (Max x y) = 
+  getLookupArguments_Term_Term x \<union>
+  getLookupArguments_Term_Term y"|
+"getLookupArguments_Term_Term (IndLess x y) = 
+  getLookupArguments_Term_Term x \<union>
+  getLookupArguments_Term_Term y"
+
+fun getLookupArguments_LogicConstraint_Term ::
+  "(LogicConstraint, Term) HasLookupArguments" where
+"getLookupArguments_LogicConstraint_Term (Atom c) = 
+  (case c of
+    (Equals x y) \<Rightarrow> 
+      getLookupArguments_Term_Term x \<union>
+      getLookupArguments_Term_Term y |
+    (LessThan x y) \<Rightarrow> 
+      getLookupArguments_Term_Term x \<union>
+      getLookupArguments_Term_Term y
+  )" |
+"getLookupArguments_LogicConstraint_Term (Not p) = 
+  getLookupArguments_LogicConstraint_Term p" |
+"getLookupArguments_LogicConstraint_Term (And p q) =  
+  getLookupArguments_LogicConstraint_Term p \<union>
+  getLookupArguments_LogicConstraint_Term q" |
+"getLookupArguments_LogicConstraint_Term (Or p q) =  
+  getLookupArguments_LogicConstraint_Term p \<union>
+  getLookupArguments_LogicConstraint_Term q" |
+"getLookupArguments_LogicConstraint_Term (Iff p q) = 
+  getLookupArguments_LogicConstraint_Term p \<union>
+  getLookupArguments_LogicConstraint_Term q" |
+"getLookupArguments_LogicConstraint_Term Top = {}" |
+"getLookupArguments_LogicConstraint_Term Bottom = {}"
 
 
+fun getLookupArguments_LogicCircuit_Term ::
+  "(LogicCircuit, Term) HasLookupArguments" where
+"getLookupArguments_LogicCircuit_Term c =
+  Circuit.lookupArguments c \<union>
+  getLookupArguments_List getLookupArguments_LogicConstraint_Term 
+    (map snd (LogicConstraints.constraints (Circuit.gateConstraints c)))"
 
+fun getLookupTables ::
+  "('a, 'b) HasLookupArguments \<Rightarrow>
+   'a \<Rightarrow> ('b * LookupTableColumn list) set" where
+"getLookupTables gLA x = 
+  (\<lambda>a . (gate a, map snd (tableMap a))) ` gLA x
+  "
+
+
+class HasColumnVectorToBools =
+  fixes getColumnVectorToBools :: 
+    "'a \<Rightarrow> (RowIndex \<rightharpoonup> Scalar option) \<Rightarrow> (RowIndex \<rightharpoonup> bool)"
+
+instantiation Polynomial_ext :: (type) HasColumnVectorToBools
+begin
+definition getColumnVectorToBools_Polynomial ::
+  "Polynomial \<Rightarrow> (RowIndex \<rightharpoonup> Scalar option) \<Rightarrow> (RowIndex \<rightharpoonup> bool)" where
+"getColumnVectorToBools_Polynomial _ m x = 
+  (case m x of
+    None \<Rightarrow> None |
+    Some j \<Rightarrow> Some (j = Some 0)
+  )"
+instance proof qed
+end
+
+instantiation Term :: HasColumnVectorToBools
+begin
+definition getColumnVectorToBools_Terms ::
+  "Term \<Rightarrow> (RowIndex \<rightharpoonup> Scalar option) \<Rightarrow> (RowIndex \<rightharpoonup> bool)" where
+"getColumnVectorToBools_Terms _ m x = 
+  (case m x of
+    None \<Rightarrow> None |
+    Some j \<Rightarrow> Some (j = Some 1)
+  )"
+instance proof qed
+end
+
+(*
 locale HasEvaluate =
   fixes evaluate :: "Argument \<Rightarrow> 'a \<rightharpoonup> 'b"
+*)
+
+fun getCellMap :: "Argument \<Rightarrow> (CellReference * Scalar) list" where
+"getCellMap arg = statement arg @ witness arg"
+
+fun mapKeys ::
+  "('a \<Rightarrow> 'b) \<Rightarrow> ('a * 'c) list \<Rightarrow> ('b * 'c) list" where
+"mapKeys f = map (\<lambda>(x, y). (f x, y))"
+
+type_synonym ('a, 'b) HasEvaluate = "Argument \<Rightarrow> 'a \<rightharpoonup> 'b"
+
+fun getEvaluate_PolynomialVariable_Map_RowIndex_Scalar ::
+  "(PolynomialVariable, RowIndex \<rightharpoonup> Scalar) HasEvaluate" where
+"getEvaluate_PolynomialVariable_Map_RowIndex_Scalar arg v =
+  Some (map_of 
+    (mapKeys rowIndex
+      (filter (\<lambda>(k, _). colIndex k = colIndex v) 
+            (getCellMap arg))))"
+
+(*
+instance HasEvaluate PolynomialVariable (Map (RowIndex 'Absolute) Scalar) where
+  evaluate arg v =
+    mapKeys rowIndex 
+        (filter (\<lambda>(k, _). colIndex k == colIndex v) (getCellMap arg))
+*)
+
 
 
 

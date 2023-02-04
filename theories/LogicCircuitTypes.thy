@@ -135,8 +135,8 @@ record TraceType =
 
 type_synonym InputMatrix = "ColumnIndex \<rightharpoonup> FixedColumn"
 
-type_synonym Statement = "CellReference \<rightharpoonup> Scalar"
-type_synonym Witness = "CellReference \<rightharpoonup> Scalar"
+type_synonym Statement = "(CellReference * Scalar) list"
+type_synonym Witness = "(CellReference * Scalar) list"
 record Argument =
   statement :: Statement
   witness :: Witness

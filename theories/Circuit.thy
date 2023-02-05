@@ -45,7 +45,7 @@ begin
   definition getPolynomialVariables_Polynomial :: 
   "Polynomial \<Rightarrow> PolynomialVariable set" where
 "getPolynomialVariables_Polynomial p = 
-  getPolynomialVariables {key. \<exists>y . unPolynomial p key = Some y}"
+  getPolynomialVariables {key. \<exists>y . map_of (unPolynomial p) key = Some y}"
   instance proof qed
 end
 
@@ -159,7 +159,7 @@ instantiation Polynomial_ext :: (type) HasScalars
 begin 
   definition getScalars_Polynomial :: 
   "Polynomial \<Rightarrow> Scalar set" where
-"getScalars_Polynomial p = {v. \<exists>key. unPolynomial p key = Some v}"
+"getScalars_Polynomial p = {v. \<exists>key. map_of (unPolynomial p) key = Some v}"
   instance proof qed
 end
 
@@ -381,51 +381,112 @@ fun map_union_with :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('k 
 fun getEvaluate_RowCount_PowerProduct_Coefficient_Map_RowIndex_Scalar ::
   "(RowCount * PowerProduct * Coefficient, RowIndex \<rightharpoonup> Scalar) HasEvaluate" where
 "getEvaluate_RowCount_PowerProduct_Coefficient_Map_RowIndex_Scalar arg (n, \<lparr> unPowerProduct = m \<rparr>, c) = 
-  (let evaluate :: Argument \<Rightarrow> PolynomialVariable \<rightharpoonup> (RowIndex \<rightharpoonup> Scalar)
-       = getEvaluate_PolynomialVariable_Map_RowIndex_Scalar in
+  (let evaluate = getEvaluate_PolynomialVariable_Map_RowIndex_Scalar in
   (let lm :: (RowIndex \<rightharpoonup> Scalar) list option = 
        those (map (\<lambda>(v, e). map_option (map_map (\<lambda>d. d ^ nat e)) (evaluate arg v)) m) in
   (if m = []
-    then Some (\<lambda>x . (if 0 \<le> x \<and> x < n then Some c else None))
-    else map_option (\<lambda>l. map_map (\<lambda>a. a * c) (foldr (map_union_with (*)) l Map.empty)) lm
+   then Some (\<lambda>x . (if 0 \<le> x \<and> x < n then Some c else None))
+   else map_option (\<lambda>l. map_map (\<lambda>a. a * c) (foldr (map_union_with (*)) l Map.empty)) lm
   )))"
 
-(*m :: (CellReference \<times> int) list*)
+fun specM :: "('a \<Rightarrow> 'b option) \<Rightarrow> 'a list \<Rightarrow> 'b list option" where
+"specM f l = those (map f l)"
 
-(*transpose (map (\<lambda>(v, e). map (map (\<lambda>d. d ^ nat e)) (evaluate arg v)) m)*)
-
-
-(*
-instance
-  HasEvaluate
-    (RowCount, (PowerProduct, Coefficient))
-    (Map (RowIndex 'Absolute) Scalar)
-  where
-  evaluate ann arg (RowCount n, (PowerProduct m, Coefficient c)) =
-    if Map.null m
-      then do
-        n' <- case integerToInt (scalarToInteger n) of
-          Just n' -> pure n'
-          Nothing -> Left (ErrorMessage ann "row count outside range of Int")
-        pure (Map.fromList ((,c) . RowIndex <$> [0 .. n' - 1]))
-      else
-        fmap (Ring.* c) . foldr (Map.unionWith (Ring.* )) mempty
-          <$> sequence
-            [ evaluate ann arg v <&> fmap (Ring.^ intToInteger (e ^. #getExponent))
-              | (v, e) <- Map.toList m
-            ]
-*)
-
-
+fun getEvaluate_RowCount_Polynomial_Map_RowIndex_Scalar ::
+  "(RowCount * Polynomial, RowIndex \<rightharpoonup> Scalar) HasEvaluate" where
+"getEvaluate_RowCount_Polynomial_Map_RowIndex_Scalar arg (rc, \<lparr> unPolynomial = monos \<rparr>) =
+  (let evaluate = getEvaluate_RowCount_PowerProduct_Coefficient_Map_RowIndex_Scalar in
+  map_option (\<lambda>l . foldr (map_union_with (+)) l Map.empty)
+      (specM (evaluate arg \<circ> (\<lambda>b . (rc, b))) monos)
+  )"
 
 definition performLookups :: "
-  (Argument \<Rightarrow> (RowCount * 'a) \<Rightarrow> (RowIndex \<rightharpoonup> (Scalar option)) option) \<Rightarrow>
+  (RowCount * 'a, RowIndex \<rightharpoonup> Scalar option) HasEvaluate \<Rightarrow>
   RowCount \<Rightarrow>
   Argument \<Rightarrow>
   ('a InputExpression * LookupTableColumn) list \<Rightarrow>
   LookupTableOutputColumn \<Rightarrow>
-  (RowIndex \<rightharpoonup> (Scalar option)) option" where
+  (RowIndex \<rightharpoonup> Scalar option) option" where
 "performLookups eval rc arg is outCol = None"
+
+(*
+performLookups ::
+  HasEvaluate (RowCount, a) (Map (RowIndex 'Absolute) (Maybe Scalar)) =>
+  ann ->
+  RowCount ->
+  Argument ->
+  [(InputExpression a, LookupTableColumn)] ->
+  LookupTableOutputColumn ->
+  Either (ErrorMessage ann) (Map (RowIndex 'Absolute) (Maybe Scalar))
+performLookups ann rc arg is outCol = do
+  inputTable <-
+    fmap (Map.mapMaybe id)
+      <$> mapM (evaluate ann arg . (rc,) . (^. #getInputExpression) . fst) is
+  results <-
+    getLookupResults
+      ann
+      rc
+      Nothing
+      (getCellMap arg)
+      (zip inputTable (snd <$> is))
+  let allRows = getRowSet rc Nothing
+      results' =
+        fmap Just . Map.mapKeys (^. #rowIndex) $
+          Map.filterWithKey (\k _ -> k ^. #colIndex == outCol') results
+  pure $ results' <> Map.fromList ((,Nothing) <$> Set.toList allRows)
+  where
+    outCol' = outCol ^. #unLookupTableOutputColumn . #unLookupTableColumn
+
+*)
+
+fun getEvaluate_RowCount_Term_Map_RowIndex_Scalar ::
+  "(RowCount * Term, RowIndex \<rightharpoonup> Scalar option) HasEvaluate" where
+"getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (rc, trm) =
+  (case trm of
+    Var v \<Rightarrow> map_option (map_map Some) (getEvaluate_PolynomialVariable_Map_RowIndex_Scalar arg v) | 
+    Const i \<Rightarrow> Some (\<lambda>x . (if 0 \<le> x \<and> x < rc then Some (Some i) else None)) |
+    Plus x y \<Rightarrow> 
+      ( let recx = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (rc, x) in
+      ( let recy = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (rc, y) in
+        None
+      )) |
+    Times x y \<Rightarrow> 
+      ( let recx = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (rc, x) in
+      ( let recy = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (rc, y) in
+        None
+      )) |
+    Max x y \<Rightarrow> 
+      ( let recx = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (rc, x) in
+      ( let recy = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (rc, y) in
+        None
+      )) |
+    IndLess x y \<Rightarrow> 
+      ( let recx = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (rc, x) in
+      ( let recy = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (rc, y) in
+        None
+      )) |
+    Lookup is outCol \<Rightarrow> None
+  )"
+
+
+(*
+instance HasEvaluate (RowCount, Term) (Map (RowIndex 'Absolute) (Maybe Scalar)) where
+  evaluate ann arg = uncurry $ \rc@(RowCount n) ->
+    let rec = evaluate ann arg . (rc,)
+     in \case
+          Plus x y -> Map.unionWith (liftA2 (Group.+)) <$> rec x <*> rec y
+          Times x y -> Map.unionWith (liftA2 (Ring.* )) <$> rec x <*> rec y
+          Max x y -> Map.unionWith (liftA2 max) <$> rec x <*> rec y
+          IndLess x y -> Map.unionWith (liftA2 lessIndicator) <$> rec x <*> rec y
+          l@(Lookup is outCol) ->
+            mapLeft
+              ( \(ErrorMessage ann' msg) ->
+                  ErrorMessage ann' ("performLookups " <> pack (show l) <> ": " <> msg)
+              )
+              (performLookups ann rc arg is outCol)
+*)
+
+
 
 
 

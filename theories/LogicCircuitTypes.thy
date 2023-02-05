@@ -88,7 +88,7 @@ record PowerProduct =
 (*  unPowerProduct :: "PolynomialVariable \<rightharpoonup> Exponent"*)
   
 record Polynomial = 
-  unPolynomial :: "PowerProduct \<rightharpoonup> Coefficient"
+  unPolynomial :: "(PowerProduct * Coefficient) list"
 type_synonym PolynomialDegreeBound = int
 
 record PolynomialConstraints = 

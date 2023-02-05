@@ -36,7 +36,7 @@ begin
   definition getPolynomialVariables_PowerProduct :: 
   "PowerProduct \<Rightarrow> PolynomialVariable set" where
 "getPolynomialVariables_PowerProduct p = 
-  {key. \<exists>y . unPowerProduct p key = Some y}"
+  {key. \<exists>y . map_of (unPowerProduct p) key = Some y}"
   instance proof qed
 end
 
@@ -364,13 +364,57 @@ fun getEvaluate_PolynomialVariable_Map_RowIndex_Scalar ::
       (filter (\<lambda>(k, _). colIndex k = colIndex v) 
             (getCellMap arg))))"
 
-(*
-instance HasEvaluate PolynomialVariable (Map (RowIndex 'Absolute) Scalar) where
-  evaluate arg v =
-    mapKeys rowIndex 
-        (filter (\<lambda>(k, _). colIndex k == colIndex v) (getCellMap arg))
-*)
+find_consts "('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('d \<rightharpoonup> 'a) \<Rightarrow> 'b"
 
+fun map_map :: "('a \<Rightarrow> 'b) \<Rightarrow> ('c \<rightharpoonup> 'a) \<Rightarrow> ('c \<rightharpoonup> 'b)" where
+"map_map f m = map_option f \<circ> m"
+
+fun map_union_with :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('k \<rightharpoonup> 'a) \<Rightarrow> ('k \<rightharpoonup> 'a) \<Rightarrow> ('k \<rightharpoonup> 'a)" where
+"map_union_with f m1 m2 k =
+  (case (m1 k, m2 k) of
+    (None, r2) \<Rightarrow> r2 |
+    (r1, None) \<Rightarrow> r1 |
+    (Some r1, Some r2) \<Rightarrow> Some (f r1 r2)
+  )
+"
+
+fun getEvaluate_RowCount_PowerProduct_Coefficient_Map_RowIndex_Scalar ::
+  "(RowCount * PowerProduct * Coefficient, RowIndex \<rightharpoonup> Scalar) HasEvaluate" where
+"getEvaluate_RowCount_PowerProduct_Coefficient_Map_RowIndex_Scalar arg (n, \<lparr> unPowerProduct = m \<rparr>, c) = 
+  (let evaluate :: Argument \<Rightarrow> PolynomialVariable \<rightharpoonup> (RowIndex \<rightharpoonup> Scalar)
+       = getEvaluate_PolynomialVariable_Map_RowIndex_Scalar in
+  (let lm :: (RowIndex \<rightharpoonup> Scalar) list option = 
+       those (map (\<lambda>(v, e). map_option (map_map (\<lambda>d. d ^ nat e)) (evaluate arg v)) m) in
+  (if m = []
+    then Some (\<lambda>x . (if 0 \<le> x \<and> x < n then Some c else None))
+    else map_option (\<lambda>l. map_map (\<lambda>a. a * c) (foldr (map_union_with (*)) l Map.empty)) lm
+  )))"
+
+(*m :: (CellReference \<times> int) list*)
+
+(*transpose (map (\<lambda>(v, e). map (map (\<lambda>d. d ^ nat e)) (evaluate arg v)) m)*)
+
+
+(*
+instance
+  HasEvaluate
+    (RowCount, (PowerProduct, Coefficient))
+    (Map (RowIndex 'Absolute) Scalar)
+  where
+  evaluate ann arg (RowCount n, (PowerProduct m, Coefficient c)) =
+    if Map.null m
+      then do
+        n' <- case integerToInt (scalarToInteger n) of
+          Just n' -> pure n'
+          Nothing -> Left (ErrorMessage ann "row count outside range of Int")
+        pure (Map.fromList ((,c) . RowIndex <$> [0 .. n' - 1]))
+      else
+        fmap (Ring.* c) . foldr (Map.unionWith (Ring.* )) mempty
+          <$> sequence
+            [ evaluate ann arg v <&> fmap (Ring.^ intToInteger (e ^. #getExponent))
+              | (v, e) <- Map.toList m
+            ]
+*)
 
 
 

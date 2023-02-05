@@ -84,7 +84,8 @@ type_synonym LogicCircuit = "(LogicConstraints, Term) Circuit"
 type_synonym Exponent = int
 type_synonym Coefficient = Scalar
 record PowerProduct = 
-  unPowerProduct :: "PolynomialVariable \<rightharpoonup> Exponent"
+  unPowerProduct :: "(PolynomialVariable * Exponent) list"
+(*  unPowerProduct :: "PolynomialVariable \<rightharpoonup> Exponent"*)
   
 record Polynomial = 
   unPolynomial :: "PowerProduct \<rightharpoonup> Coefficient"

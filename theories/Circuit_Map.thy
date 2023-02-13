@@ -1,5 +1,5 @@
-theory Circuit
-  imports Main "LogicCircuitTypes"
+theory Circuit_Map
+  imports Main "LogicCircuitTypes_Map"
 begin
 
 class HasPolynomialVariables =
@@ -316,58 +316,70 @@ fun getLookupTables ::
 
 class HasColumnVectorToBools =
   fixes getColumnVectorToBools :: 
-    "'a \<Rightarrow> (RowIndex \<rightharpoonup> Scalar option) \<Rightarrow> (RowIndex \<rightharpoonup> bool)"
+    "'a \<Rightarrow> (RowIndex, Scalar option) Map \<Rightarrow> (RowIndex, bool) Map"
 
 instantiation Polynomial_ext :: (type) HasColumnVectorToBools
 begin
 definition getColumnVectorToBools_Polynomial ::
-  "Polynomial \<Rightarrow> (RowIndex \<rightharpoonup> Scalar option) \<Rightarrow> (RowIndex \<rightharpoonup> bool)" where
-"getColumnVectorToBools_Polynomial _ m x = 
-  (case m x of
-    None \<Rightarrow> None |
-    Some j \<Rightarrow> Some (j = Some 0)
-  )"
+  "Polynomial \<Rightarrow> (RowIndex, Scalar option) Map \<Rightarrow> (RowIndex, bool) Map" where
+"getColumnVectorToBools_Polynomial _ m =
+  map (\<lambda>(x, k). (x, k = Some 0)) m"
 instance proof qed
 end
 
 instantiation Term :: HasColumnVectorToBools
 begin
 definition getColumnVectorToBools_Terms ::
-  "Term \<Rightarrow> (RowIndex \<rightharpoonup> Scalar option) \<Rightarrow> (RowIndex \<rightharpoonup> bool)" where
-"getColumnVectorToBools_Terms _ m x = 
-  (case m x of
-    None \<Rightarrow> None |
-    Some j \<Rightarrow> Some (j = Some 1)
-  )"
+  "Term \<Rightarrow> (RowIndex, Scalar option) Map \<Rightarrow> (RowIndex, bool) Map" where
+"getColumnVectorToBools_Terms _ m = 
+  map (\<lambda>(x, k). (x, k = Some 1)) m"
 instance proof qed
 end
 
 (*
 locale HasEvaluate =
-  fixes evaluate :: "Argument \<Rightarrow> 'a \<rightharpoonup> 'b"
+  fixes evaluate :: "Argument \<Rightarrow> ('a, 'b) Map"
 *)
 
-fun getCellMap :: "Argument \<Rightarrow> (CellReference * Scalar) list" where
+fun getCellMap :: "Argument \<Rightarrow> (CellReference, Scalar) Map" where
 "getCellMap arg = statement arg @ witness arg"
 
 fun mapKeys ::
-  "('a \<Rightarrow> 'b) \<Rightarrow> ('a * 'c) list \<Rightarrow> ('b * 'c) list" where
+  "('a \<Rightarrow> 'b) \<Rightarrow> ('a, 'c) Map \<Rightarrow> ('b, 'c) Map" where
 "mapKeys f = map (\<lambda>(x, y). (f x, y))"
+
+fun mapMap ::
+  "('a \<Rightarrow> 'b) \<Rightarrow> ('c, 'a) Map \<Rightarrow> ('c, 'b) Map" where
+"mapMap f = map (\<lambda>(x, y). (x, f y))"
 
 type_synonym ('a, 'b) HasEvaluate = "Argument \<Rightarrow> 'a \<rightharpoonup> 'b"
 
+fun map_filterWithKey :: "
+  ('a \<Rightarrow> bool) \<Rightarrow> ('a, 'b) Map \<Rightarrow> ('a, 'b) Map" where
+"map_filterWithKey f = filter (f \<circ> fst)"
+
 fun getEvaluate_PolynomialVariable_Map_RowIndex_Scalar ::
-  "(PolynomialVariable, RowIndex \<rightharpoonup> Scalar) HasEvaluate" where
+  "(PolynomialVariable, (RowIndex, Scalar) Map) HasEvaluate" where
 "getEvaluate_PolynomialVariable_Map_RowIndex_Scalar arg v =
-  Some (map_of 
+  Some
     (mapKeys rowIndex
       (filter (\<lambda>(k, _). colIndex k = colIndex v) 
-            (getCellMap arg))))"
+            (getCellMap arg)))
+"
 
-fun map_map :: "('a \<Rightarrow> 'b) \<Rightarrow> ('c \<rightharpoonup> 'a) \<Rightarrow> ('c \<rightharpoonup> 'b)" where
-"map_map f m = map_option f \<circ> m"
+fun getEvaluate_RowCount_PolynomialVariable_Map_RowIndex_Scalar :: "
+  (RowCount * PolynomialVariable, (RowIndex, Scalar) Map) HasEvaluate" where
+"getEvaluate_RowCount_PolynomialVariable_Map_RowIndex_Scalar arg (n, v) = 
+  Some
+    (mapKeys (\<lambda>k. (rowIndex v - rowIndex k) mod n)
+      (filter (\<lambda>(k, _). colIndex k = colIndex v) 
+            (getCellMap arg)))"
 
-fun map_union_with :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('k \<rightharpoonup> 'a) \<Rightarrow> ('k \<rightharpoonup> 'a) \<Rightarrow> ('k \<rightharpoonup> 'a)" where
+fun map_union_with :: "
+  ('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> 
+  ('k \<rightharpoonup> 'a) \<Rightarrow> 
+  ('k \<rightharpoonup> 'a) \<Rightarrow> 
+  ('k \<rightharpoonup> 'a)" where
 "map_union_with f m1 m2 k =
   (case (m1 k, m2 k) of
     (None, r2) \<Rightarrow> r2 |
@@ -376,16 +388,25 @@ fun map_union_with :: "('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> ('k 
   )
 "
 
+fun list_map_union_with :: "
+  ('a \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> 
+  ('k, 'a) Map \<Rightarrow> 
+  ('k, 'a) Map \<Rightarrow> 
+  ('k, 'a) Map" where
+"list_map_union_with f m1 m2 = []
+"
+
 (*Multiplication should be swapped out for modular variant*)
 fun getEvaluate_RowCount_PowerProduct_Coefficient_Map_RowIndex_Scalar ::
-  "(RowCount * PowerProduct * Coefficient, RowIndex \<rightharpoonup> Scalar) HasEvaluate" where
+  "(RowCount * PowerProduct * Coefficient, (RowIndex, Scalar) Map) HasEvaluate" where
 "getEvaluate_RowCount_PowerProduct_Coefficient_Map_RowIndex_Scalar arg (n, \<lparr> unPowerProduct = m \<rparr>, c) = 
   (let evaluate = getEvaluate_PolynomialVariable_Map_RowIndex_Scalar in
-  (let lm :: (RowIndex \<rightharpoonup> Scalar) list option = 
-       those (map (\<lambda>(v, e). map_option (map_map (\<lambda>d. d ^ nat e)) (evaluate arg v)) m) in
+  (let lm :: (RowIndex, Scalar) Map list option = 
+       those (map (\<lambda>(v, e). map_option (mapMap (\<lambda>d. d ^ nat e))  (evaluate arg v)) m) in
   (if m = []
-   then Some (\<lambda>x . (if 0 \<le> x \<and> x < n then Some c else None))
-   else map_option (\<lambda>l. map_map (\<lambda>a. a * c) (foldr (map_union_with (*)) l Map.empty)) lm
+   then Some (map (\<lambda>x. (of_nat x, c)) [0..<nat n])
+   else map_option (\<lambda>l. mapMap (\<lambda>a. a * c) 
+                               (foldr (list_map_union_with (*)) l [])) lm
   )))"
 
 fun specM :: "('a \<Rightarrow> 'b option) \<Rightarrow> 'a list \<Rightarrow> 'b list option" where

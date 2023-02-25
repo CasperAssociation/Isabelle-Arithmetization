@@ -316,12 +316,12 @@ fun getLookupTables ::
 
 class HasColumnVectorToBools =
   fixes getColumnVectorToBools :: 
-    "'a \<Rightarrow> (RowIndex, Scalar option) Map \<Rightarrow> (RowIndex, bool) Map"
+    "'a \<Rightarrow> (Absolute RowIndex, Scalar option) Map \<Rightarrow> (Absolute RowIndex, bool) Map"
 
 instantiation Polynomial_ext :: (type) HasColumnVectorToBools
 begin
 definition getColumnVectorToBools_Polynomial ::
-  "Polynomial \<Rightarrow> (RowIndex, Scalar option) Map \<Rightarrow> (RowIndex, bool) Map" where
+  "Polynomial \<Rightarrow> (Absolute RowIndex, Scalar option) Map \<Rightarrow> (Absolute RowIndex, bool) Map" where
 "getColumnVectorToBools_Polynomial _ m =
   map (\<lambda>(x, k). (x, k = Some 0)) m"
 instance proof qed
@@ -330,7 +330,7 @@ end
 instantiation Term :: HasColumnVectorToBools
 begin
 definition getColumnVectorToBools_Terms ::
-  "Term \<Rightarrow> (RowIndex, Scalar option) Map \<Rightarrow> (RowIndex, bool) Map" where
+  "Term \<Rightarrow> (Absolute RowIndex, Scalar option) Map \<Rightarrow> (Absolute RowIndex, bool) Map" where
 "getColumnVectorToBools_Terms _ m = 
   map (\<lambda>(x, k). (x, k = Some 1)) m"
 instance proof qed
@@ -341,7 +341,7 @@ locale HasEvaluate =
   fixes evaluate :: "Argument \<Rightarrow> ('a, 'b) Map"
 *)
 
-fun getCellMap :: "Argument \<Rightarrow> (CellReference, Scalar) Map" where
+fun getCellMap :: "Argument \<Rightarrow> (Absolute CellReference, Scalar) Map" where
 "getCellMap arg = statement arg @ witness arg"
 
 fun mapKeys ::
@@ -361,7 +361,7 @@ fun map_filterWithKey :: "
 
 
 fun getEvaluate_PolynomialVariable_Map_RowIndex_Scalar ::
-  "(PolynomialVariable, (RowIndex, Scalar) Map) HasEvaluate" where
+  "(PolynomialVariable, (Absolute RowIndex, Scalar) Map) HasEvaluate" where
 "getEvaluate_PolynomialVariable_Map_RowIndex_Scalar arg v =
   Some
     (mapKeys rowIndex
@@ -370,7 +370,7 @@ fun getEvaluate_PolynomialVariable_Map_RowIndex_Scalar ::
 "
 
 fun getEvaluate_RowCount_PolynomialVariable_Map_RowIndex_Scalar :: "
-  (RowCount * PolynomialVariable, (RowIndex, Scalar) Map) HasEvaluate" where
+  (RowCount * PolynomialVariable, (Absolute RowIndex, Scalar) Map) HasEvaluate" where
 "getEvaluate_RowCount_PolynomialVariable_Map_RowIndex_Scalar arg (n, v) = 
   Some
     (mapKeys (\<lambda>k. (rowIndex v - rowIndex k) mod n)
@@ -444,10 +444,10 @@ value "list_map_intersection [(5 :: nat, a), (3, b)] [(5, A), (7, C)]"
 
 (*Multiplication should be swapped out for modular variant*)
 fun getEvaluate_RowCount_PowerProduct_Coefficient_Map_RowIndex_Scalar ::
-  "(RowCount * PowerProduct * Coefficient, (RowIndex, Scalar) Map) HasEvaluate" where
+  "(RowCount * PowerProduct * Coefficient, (Absolute RowIndex, Scalar) Map) HasEvaluate" where
 "getEvaluate_RowCount_PowerProduct_Coefficient_Map_RowIndex_Scalar arg (n, \<lparr> unPowerProduct = m \<rparr>, c) = 
   (let evaluate = getEvaluate_PolynomialVariable_Map_RowIndex_Scalar in
-  (let lm :: (RowIndex, Scalar) Map list option = 
+  (let lm :: (Absolute RowIndex, Scalar) Map list option = 
        those (map (\<lambda>(v, e). map_option (mapMap (\<lambda>d. d ^ nat e))  (evaluate arg v)) m) in
   (if m = []
    then Some (map (\<lambda>x. (of_nat x, c)) [0..<nat n])
@@ -460,7 +460,7 @@ fun specM :: "('a \<Rightarrow> 'b option) \<Rightarrow> 'a list \<Rightarrow> '
 
 (*Addition should be swapped out for modular variant*)
 fun getEvaluate_RowCount_Polynomial_Map_RowIndex_Scalar ::
-  "(RowCount * Polynomial, (RowIndex, Scalar option) Map) HasEvaluate" where
+  "(RowCount * Polynomial, (Absolute RowIndex, Scalar option) Map) HasEvaluate" where
 "getEvaluate_RowCount_Polynomial_Map_RowIndex_Scalar arg (rc, \<lparr> unPolynomial = monos \<rparr>) =
   (let evaluate = getEvaluate_RowCount_PowerProduct_Coefficient_Map_RowIndex_Scalar in
   map_option (\<lambda>l . mapMap Some (foldr (list_map_union_with (+)) l []))
@@ -473,15 +473,15 @@ fun lessIndicator :: "Scalar \<Rightarrow> Scalar \<Rightarrow> Scalar" where
 
 fun getRowSet :: "
   RowCount \<Rightarrow>
-  RowIndex set option \<Rightarrow>
-  RowIndex set" where
+  Absolute RowIndex set option \<Rightarrow>
+  Absolute RowIndex set" where
 "(getRowSet n None) = of_nat ` set (upt 0 (nat n))" |
 "(getRowSet n (Some x)) = x"
 
 fun getRowList :: "
   RowCount \<Rightarrow>
-  RowIndex list option \<Rightarrow>
-  RowIndex list" where
+  Absolute RowIndex list option \<Rightarrow>
+  Absolute RowIndex list" where
 "(getRowList n None) = map of_nat (upt 0 (nat n))" |
 "(getRowList n (Some x)) = x"
 
@@ -492,17 +492,17 @@ fun list_map_unions_with :: "
 "list_map_unions_with f ms = foldr (list_map_union_with f) ms []"
 
 fun getCellMapRows :: "
-  (RowIndex) set \<Rightarrow>
-  (CellReference, Scalar) Map \<Rightarrow>
-  (RowIndex, (ColumnIndex, Scalar) Map) Map" where
+  (Absolute RowIndex) set \<Rightarrow>
+  (Absolute CellReference, Scalar) Map \<Rightarrow>
+  (Absolute RowIndex, (ColumnIndex, Scalar) Map) Map" where
 "getCellMapRows rows cellMap = 
   list_map_unions_with (@) 
     (map (\<lambda>(cr, x). [(rowIndex cr, [(colIndex cr, x)])])
          (filter (\<lambda>(cr, x). rowIndex cr \<in> rows) cellMap))"
 
 fun columnListToCellMap :: "
-  ((RowIndex, Scalar) Map * LookupTableColumn) list \<Rightarrow>
-  (CellReference, Scalar) Map" where
+  ((Absolute RowIndex, Scalar) Map * LookupTableColumn) list \<Rightarrow>
+  (Absolute CellReference, Scalar) Map" where
 "columnListToCellMap cols = 
   List.bind cols (\<lambda>(row, ci).
   List.bind row (\<lambda>(ri, x).
@@ -510,14 +510,14 @@ fun columnListToCellMap :: "
   ))"
 
 fun getColumnListRows :: "
-  (RowIndex) set \<Rightarrow>
-  ((RowIndex, Scalar) Map * LookupTableColumn) list \<Rightarrow>
-  (RowIndex, (ColumnIndex, Scalar) Map) Map" where
+  (Absolute RowIndex) set \<Rightarrow>
+  ((Absolute RowIndex, Scalar) Map * LookupTableColumn) list \<Rightarrow>
+  (Absolute RowIndex, (ColumnIndex, Scalar) Map) Map" where
 "getColumnListRows rows = getCellMapRows rows \<circ> columnListToCellMap"
 
 fun rowsToCellMap :: "
-  (RowIndex, (ColumnIndex, Scalar) Map) Map \<Rightarrow>
-  (CellReference, Scalar) Map" where
+  (Absolute RowIndex, (ColumnIndex, Scalar) Map) Map \<Rightarrow>
+  (Absolute CellReference, Scalar) Map" where
 "rowsToCellMap rows =
   List.bind rows (\<lambda>(ri, cols).
   List.bind cols (\<lambda>(ci, x).
@@ -525,30 +525,29 @@ fun rowsToCellMap :: "
   ))"
 
 fun map_size :: "('a, 'b) Map \<Rightarrow> nat" where
-"map_size m = (length \<circ> remdups \<circ> (map fst)) m"
+"map_size m = (length \<circ> remdups \<circ> map fst) m"
 
 fun getLookupResults :: "
   RowCount \<Rightarrow>
-  RowIndex list option \<Rightarrow>
-  (CellReference, Scalar) Map \<Rightarrow>
-  ((RowIndex, Scalar) Map * LookupTableColumn) list \<Rightarrow>
-  (CellReference, Scalar) Map option" where
+  Absolute RowIndex list option \<Rightarrow>
+  (Absolute CellReference, Scalar) Map \<Rightarrow>
+  ((Absolute RowIndex, Scalar) Map * LookupTableColumn) list \<Rightarrow>
+  (Absolute CellReference, Scalar) Map option" where
 "getLookupResults rc mRowSet cellMap inputTable = 
   (let rowSet = getRowList rc mRowSet in
   (let allRows = getRowSet rc None in
-  (let cellMapAllRows :: (RowIndex, (ColumnIndex, Scalar) Map) Map
+  (let cellMapAllRows :: (Absolute RowIndex, (ColumnIndex, Scalar) Map) Map
         = getCellMapRows allRows cellMap in
   (let tableCols :: (ColumnIndex, unit) Map= 
         map ((\<lambda>x. (x, ())) \<circ> snd) inputTable in
-  (let cellMapTableRows :: (RowIndex , (ColumnIndex, Scalar) Map) Map
+  (let cellMapTableRows :: (Absolute RowIndex , (ColumnIndex, Scalar) Map) Map
         = mapMap (\<lambda>x. list_map_intersection x tableCols) cellMapAllRows in
   (let cellMapTableInverse = map (\<lambda>(x, y). (y, x)) cellMapTableRows in
   (let tableRows = getColumnListRows (set rowSet) inputTable in
   map_option rowsToCellMap (those (map (\<lambda>ri. 
     Option.bind (map_of tableRows ri) (\<lambda>inputTableRow. (
     if (map_size inputTableRow \<noteq> length inputTable) then None
-    else (
-    case map_of cellMapTableInverse inputTableRow of
+    else (case map_of cellMapTableInverse inputTableRow of
       None \<Rightarrow> Some (ri, []) |
       Some ri' \<Rightarrow> (
         case map_of cellMapAllRows ri' of
@@ -564,10 +563,10 @@ fun getLookupResults :: "
 fun performLookups :: "
   RowCount \<Rightarrow>
   Argument \<Rightarrow>
-  (RowIndex, Scalar option) Map list option \<Rightarrow>
+  (Absolute RowIndex, Scalar option) Map list option \<Rightarrow>
   LookupTableColumn list \<Rightarrow>
   LookupTableOutputColumn \<Rightarrow>
-  ((RowIndex, Scalar option) Map) option" where
+  ((Absolute RowIndex, Scalar option) Map) option" where
 "performLookups rc arg is1 is2 c = 
   Option.bind (map_option (map (map (\<lambda>(x, y). (x, option.the y)))) is1) 
   (\<lambda>inputTable.
@@ -580,36 +579,36 @@ fun performLookups :: "
 
 
 fun getEvaluate_RowCount_Term_Map_RowIndex_Scalar ::
-  "(RowCount * Term, (RowIndex, Scalar option) Map) HasEvaluate" where
+  "(RowCount * Term, (Absolute RowIndex, Scalar option) Map) HasEvaluate" where
 "getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, Var v) =
    map_option (mapMap Some) (getEvaluate_RowCount_PolynomialVariable_Map_RowIndex_Scalar arg (n, v))" |
 "getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, Const i) =
    Some (map (\<lambda>x. (of_nat x, Some i)) (upt 0 (nat n)))" |
 "getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, Plus x y) =
-  (let recx :: ((RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, x) in
-  (let recy :: ((RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, y) in
+  (let recx :: ((Absolute RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, x) in
+  (let recy :: ((Absolute RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, y) in
     combine_options (list_map_union_with (combine_options (+))) recx recy
   ))" |
 "getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, Times x y) =
-  (let recx :: ((RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, x) in
-  (let recy :: ((RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, y) in
+  (let recx :: ((Absolute RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, x) in
+  (let recy :: ((Absolute RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, y) in
     combine_options (list_map_union_with (combine_options (*))) recx recy
   ))" |
 "getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, Max x y) =
-  (let recx :: ((RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, x) in
-  (let recy :: ((RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, y) in
+  (let recx :: ((Absolute RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, x) in
+  (let recy :: ((Absolute RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, y) in
     combine_options (list_map_union_with (combine_options max)) recx recy
   ))" |
 "getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, IndLess x y) =
-  (let recx :: ((RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, x) in
-  (let recy :: ((RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, y) in
+  (let recx :: ((Absolute RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, x) in
+  (let recy :: ((Absolute RowIndex, Scalar option) Map) option = getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, y) in
     combine_options (list_map_union_with (combine_options lessIndicator)) recx recy
   ))" |
 (*Note that this case is different from the haskell implementation
   in that part of `performLookups` is computed here. This is
   necessary for termination checking.*)
 "getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, Lookup is outCol) =
-  (let is1 :: (RowIndex, Scalar option) Map list option =
+  (let is1 :: (Absolute RowIndex, Scalar option) Map list option =
        those (map (\<lambda>x. getEvaluate_RowCount_Term_Map_RowIndex_Scalar arg (n, fst x)) is) in
   (let is2 = map snd is in
   performLookups n arg is1 is2 outCol

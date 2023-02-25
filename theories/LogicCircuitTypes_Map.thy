@@ -22,12 +22,14 @@ record 'a LookupArgument =
   gate :: 'a
   tableMap :: "('a InputExpression, LookupTableColumn) Map"
 type_synonym 'a LookupArguments = "('a LookupArgument) set"
+datatype Absolute = Absolute
+datatype Relative = Relative
 (*Note: In OSL, RowIndex has a parameter which doesn't seem to do anything*)
-type_synonym RowIndex = "int"
-record CellReference = 
+type_synonym 'a RowIndex = "int"
+record 'a CellReference = 
   colIndex :: ColumnIndex
-  rowIndex :: RowIndex
-type_synonym EqualityConstraint = "CellReference set"
+  rowIndex :: "'a RowIndex"
+type_synonym EqualityConstraint = "Absolute CellReference set"
 type_synonym EqualityConstraints = "EqualityConstraint list"
 type_synonym FixedColumn = "Scalar list"
 type_synonym FixedValues = "(ColumnIndex, FixedColumn) Map"
@@ -41,7 +43,7 @@ record ('a, 'b) Circuit =
   equalityConstraints :: EqualityConstraints
   fixedValues :: FixedValues
 
-type_synonym PolynomialVariable = CellReference
+type_synonym PolynomialVariable = "Relative CellReference"
 (*
 record PolynomialVariable =
   colIndex :: ColumnIndex
@@ -139,8 +141,8 @@ record TraceType =
 
 type_synonym InputMatrix = "(ColumnIndex, FixedColumn) Map"
 
-type_synonym Statement = "(CellReference, Scalar) Map"
-type_synonym Witness = "(CellReference, Scalar) Map"
+type_synonym Statement = "(Absolute CellReference, Scalar) Map"
+type_synonym Witness = "(Absolute CellReference, Scalar) Map"
 record Argument =
   statement :: Statement
   witness :: Witness
